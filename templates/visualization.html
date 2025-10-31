@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Visualization - Wind Energy</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    margin: 0; padding: 0; font-family: "Poppins", Arial, sans-serif;
+    background: url('{{ url_for("static", filename="images/winds.jpg") }}') no-repeat center center fixed;
+    background-size: cover; color: #fff;
+  }
+  .overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.65); z-index:-1;
+  }
+  .container {
+    max-width: 1200px; margin: 0 auto; padding: 50px 20px;
+  }
+  h1 {
+    font-size: 36px; margin-bottom: 30px; color: #ffd580;
+    text-shadow: 0 0 10px rgba(255,223,150,0.5); text-align: center;
+  }
+  .charts-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 30px; margin-bottom: 40px;
+  }
+  .chart-container {
+    background: rgba(0,0,0,0.4); border-radius: 15px; padding: 20px;
+    border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .chart-container h3 {
+    color: #ffe7c2; text-align: center; margin-bottom: 20px; font-size: 20px;
+  }
+  .correlation-container {
+    background: rgba(0,0,0,0.4); border-radius: 15px; padding: 20px;
+    border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    margin-bottom: 30px;
+  }
+  .correlation-container h3 {
+    color: #ffe7c2; text-align: center; margin-bottom: 20px; font-size: 24px;
+  }
+  .correlation-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;
+  }
+  .correlation-item {
+    background: rgba(255,255,255,0.1); padding: 15px;
+    border-radius: 10px; text-align: center;
+  }
+  .correlation-item .label {
+    font-size: 14px; color: #fffacd; margin-bottom: 5px;
+  }
+  .correlation-item .value {
+    font-size: 18px; font-weight: bold; color: #ffd580;
+  }
+  .back-btn {
+    display: inline-block; margin-top: 30px; padding: 12px 30px;
+    border-radius: 25px; border: none; font-weight: bold;
+    background: linear-gradient(90deg,#ff8c00,#ff4500);
+    color: white; font-size: 16px; cursor: pointer;
+    transition: all 0.3s ease; box-shadow: 0 0 18px rgba(255,140,0,0.6);
+    text-decoration: none; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="overlay"></div>
+  <div class="container">
+    <h1>📊 Data Visualization - Wind Energy Analysis</h1>
+
+    <div class="correlation-container">
+      <h3>Correlation with Energy Output</h3>
+      <div class="correlation-grid" id="correlation-grid">
+        </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-container">
+        <h3>Wind Speed vs Energy Output</h3>
+        <canvas id="windChart" width="400" height="300"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Theoretical Power vs Energy Output</h3>
+        <canvas id="theoChart" width="400" height="300"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Wind Direction vs Energy Output</h3>
+        <canvas id="dirChart" width="400" height="300"></canvas>
+      </div>
+    </div>
+
+    <a href="/" class="back-btn" style="display:block; width: 150px; margin: 20px auto;">← Back to Home</a>
+  </div>
+
+  <script>
+    // --- Parse data from Flask (Updated) ---
+    const windEnergyData = {{ wind_energy_data|tojson }};
+    const theoEnergyData = {{ theo_energy_data|tojson }};
+    const dirEnergyData = {{ dir_energy_data|tojson }};
+    const correlationData = {{ correlations|tojson }};
+
+    // Populate correlation grid
+    const correlationGrid = document.getElementById('correlation-grid');
+    Object.keys(correlationData).forEach(key => {
+      const item = document.createElement('div');
+      item.className = 'correlation-item';
+      item.innerHTML = `
+        <div class="label">${key.toUpperCase()}</div>
+        <div class="value">${correlationData[key].toFixed(3)}</div>
+      `;
+      correlationGrid.appendChild(item);
+    });
+
+    // Chart configurations
+    const chartOptions = (xLabel) => ({
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          title: { display: true, text: xLabel, color: '#fffacd' },
+          ticks: { color: '#fffacd' }, grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        y: {
+          title: { display: true, text: 'LV ActivePower (kW)', color: '#fffacd' },
+          ticks: { color: '#fffacd' }, grid: { color: 'rgba(255,255,255,0.1)' }
+        }
+      }
+    });
+
+    // Wind Speed Chart
+    new Chart(document.getElementById('windChart'), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          data: windEnergyData.map(d => ({ x: d['Wind Speed (m/s)'], y: d.energy_output })),
+          backgroundColor: '#ffd580'
+        }]
+      },
+      options: chartOptions('Wind Speed (m/s)')
+    });
+
+    // Theoretical Power Chart
+    new Chart(document.getElementById('theoChart'), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          data: theoEnergyData.map(d => ({ x: d['Theoretical_Power_Curve (KWh)'], y: d.energy_output })),
+          backgroundColor: '#ffb347'
+        }]
+      },
+      options: chartOptions('Theoretical_Power_Curve (KWh)')
+    });
+
+    // Wind Direction Chart
+    new Chart(document.getElementById('dirChart'), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          data: dirEnergyData.map(d => ({ x: d['Wind Direction (°)'], y: d.energy_output })),
+          backgroundColor: '#ff8c00'
+        }]
+      },
+      options: chartOptions('Wind Direction (°)')
+    });
+  </script>
+</body>
+</html>
